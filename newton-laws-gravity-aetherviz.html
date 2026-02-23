@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牛顿定律与万有引力 - Newton's Laws & Gravity | AetherViz Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary-gradient: linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%);
+            --bg-gradient: linear-gradient(180deg, #0F172A 0%, #1E3A5F 50%, #1E40AF 100%);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --accent-cyan: #22D3EE;
+            --accent-amber: #FBBF24;
+            --accent-rose: #FB7185;
+            --text-primary: #F8FAFC;
+            --text-secondary: #CBD5E1;
+        }
+        
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+        }
+        
+        .nav-bar {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        .sidebar {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+        }
+        
+        .control-panel {
+            background: rgba(30, 58, 95, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #60A5FA 0%, #38BDF8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .law-tab {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .law-tab.active {
+            background: linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        
+        .law-tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .slider-thumb {
+            background: linear-gradient(135deg, #22D3EE 0%, #5EEAD4 100%);
+        }
+        
+        .force-arrow {
+            stroke: #FBBF24;
+            stroke-width: 3;
+            marker-end: url(#arrowhead-amber);
+        }
+        
+        .velocity-arrow {
+            stroke: #22D3EE;
+            stroke-width: 3;
+            marker-end: url(#arrowhead-cyan);
+        }
+        
+        .acceleration-arrow {
+            stroke: #FB7185;
+            stroke-width: 3;
+            marker-end: url(#arrowhead-rose);
+        }
+        
+        .orbit-path {
+            stroke: rgba(34, 211, 238, 0.3);
+            stroke-width: 1;
+            fill: none;
+            stroke-dasharray: 5, 5;
+        }
+        
+        .planet {
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.6));
+        }
+        
+        .quiz-panel {
+            transition: all 0.3s ease;
+        }
+        
+        .quiz-panel.hidden {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        .quiz-fab {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3B82F6 0%, #0EA5E9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        
+        .quiz-fab:hover {
+            transform: scale(1.1);
+        }
+        
+        .formula-box {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 4px solid #3B82F6;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+        
+        .goal-checkbox:checked + label {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+        
+        #canvas-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .simulation-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <nav class="nav-bar h-16 flex items-center justify-between px-6 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-white font-bold text-lg">N</div>
+            <div>
+                <h1 class="text-xl font-bold text-white">牛顿定律与万有引力</h1>
+                <p class="text-xs text-cyan-400">Newton's Laws & Universal Gravitation</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="resetSimulation()" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white transition-all">重置</button>
+            <button onclick="toggleFullscreen()" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm text-white transition-all">全屏</button>
+        </div>
+    </nav>
+
+    <!-- 定律选择标签 -->
+    <div class="flex justify-center gap-2 px-6 py-3 bg-black/20">
+        <button onclick="switchLaw('first')" id="tab-first" class="law-tab active px-6 py-2 rounded-full text-sm font-medium text-white">
+            第一定律 · 惯性
+        </button>
+        <button onclick="switchLaw('second')" id="tab-second" class="law-tab px-6 py-2 rounded-full text-sm font-medium text-white">
+            第二定律 · F=ma
+        </button>
+        <button onclick="switchLaw('third')" id="tab-third" class="law-tab px-6 py-2 rounded-full text-sm font-medium text-white">
+            第三定律 · 作用力
+        </button>
+        <button onclick="switchLaw('gravity')" id="tab-gravity" class="law-tab px-6 py-2 rounded-full text-sm font-medium text-white">
+            万有引力
+        </button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar w-80 flex-shrink-0 overflow-y-auto p-6 space-y-6">
+            <!-- 学习目标 -->
+            <div class="glass-panel p-5">
+                <h3 class="text-lg font-semibold text-cyan-400 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    学习目标
+                </h3>
+                <div id="goals-container" class="space-y-3">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+
+            <!-- 核心公式 -->
+            <div class="glass-panel p-5">
+                <h3 class="text-lg font-semibold text-cyan-400 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    核心公式
+                </h3>
+                <div id="formula-container">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+
+            <!-- 原理解释 -->
+            <div class="glass-panel p-5">
+                <h3 class="text-lg font-semibold text-cyan-400 mb-4">原理解释</h3>
+                <div id="explanation-container" class="text-sm text-gray-300 leading-relaxed">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中央主区域 -->
+        <main class="flex-1 relative" id="canvas-container">
+            <!-- Three.js 画布 -->
+            <canvas id="three-canvas" class="w-full h-full"></canvas>
+            
+            <!-- 模拟信息覆盖层 -->
+            <div id="simulation-info" class="simulation-overlay">
+                <!-- 动态加载 -->
+            </div>
+
+            <!-- 底部控制面板 -->
+            <div class="absolute bottom-6 left-6 right-80 control-panel rounded-2xl p-6">
+                <div id="controls-container" class="grid grid-cols-3 gap-6">
+                    <!-- 动态加载控制项 -->
+                </div>
+                
+                <!-- 计算结果 -->
+                <div id="results-container" class="mt-4 pt-4 border-t border-white/10 grid grid-cols-4 gap-4 text-center">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </main>
+
+        <!-- 测验面板 -->
+        <div id="quiz-panel" class="quiz-panel absolute right-6 top-20 w-80 glass-panel p-5 z-40 max-h-96 overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-cyan-400 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    快速测验
+                </h3>
+                <button onclick="toggleQuiz()" class="text-gray-400 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div id="quiz-container" class="space-y-4">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 测验悬浮按钮 -->
+    <div id="quiz-fab" class="quiz-fab hidden" onclick="toggleQuiz()">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-center text-xs text-gray-500 z-30">
+        <p>由 AetherViz Master 为你生成 ❤️ | 探索经典力学的奥秘</p>
+    </footer>
+
+    <script>
+        // 定律内容数据
+        const lawData = {
+            first: {
+                title: "牛顿第一定律 · 惯性定律",
+                goals: [
+                    "理解惯性的概念",
+                    "掌握力与运动状态的关系",
+                    "认识参考系的重要性",
+                    "应用惯性解释日常现象"
+                ],
+                formulas: [
+                    { name: "惯性定律", expr: "\\vec{F} = 0 \\Rightarrow \\vec{v} = \\text{常数}" },
+                    { name: "平衡状态", expr: "\\sum \\vec{F} = 0 \\Leftrightarrow \\vec{a} = 0" }
+                ],
+                explanation: `
+                    <strong class="text-cyan-400">通俗理解：</strong><br>
+                    物体会保持它的运动状态，直到有外力迫使它改变。就像公交车突然刹车，乘客会向前倾——这就是惯性。<br><br>
+                    <strong class="text-cyan-400">关键概念：</strong><br>
+                    • 惯性是物体的固有属性，只与质量有关<br>
+                    • 力不是维持运动的原因，而是改变运动的原因<br>
+                    • 只有在惯性参考系中，第一定律才成立
+                `,
+                controls: [
+                    { id: "friction", label: "摩擦力", min: 0, max: 1, step: 0.1, value: 0.3, unit: "" },
+                    { id: "push", label: "推力", min: 0, max: 10, step: 0.5, value: 0, unit: "N" }
+                ],
+                results: ["速度", "加速度", "摩擦力", "净力"],
+                quiz: [
+                    { q: "1. 牛顿第一定律又称为？", options: ["A. 加速度定律", "B. 惯性定律 ✓", "C. 作用力定律"] },
+                    { q: "2. 惯性大小与什么有关？", options: ["A. 速度", "B. 质量 ✓", "C. 形状"] }
+                ]
+            },
+            second: {
+                title: "牛顿第二定律 · 加速度定律",
+                goals: [
+                    "理解力、质量、加速度的关系",
+                    "掌握 F=ma 的应用",
+                    "学会受力分析",
+                    "解决动力学问题"
+                ],
+                formulas: [
+                    { name: "基本形式", expr: "\\vec{F} = m\\vec{a}" },
+                    { name: "分量形式", expr: "F_x = ma_x, \\; F_y = ma_y" },
+                    { name: "重量公式", expr: "G = mg" }
+                ],
+                explanation: `
+                    <strong class="text-cyan-400">通俗理解：</strong><br>
+                    推一个箱子，推得越用力，箱子加速越快；箱子越重，同样推力加速越慢。<br><br>
+                    <strong class="text-cyan-400">关键概念：</strong><br>
+                    • 加速度与合外力成正比，与质量成反比<br>
+                    • 力和加速度方向相同<br>
+                    • 质量是惯性的量度
+                `,
+                controls: [
+                    { id: "mass", label: "质量", min: 1, max: 10, step: 0.5, value: 2, unit: "kg" },
+                    { id: "force", label: "作用力", min: 0, max: 20, step: 1, value: 10, unit: "N" }
+                ],
+                results: ["加速度", "速度", "位移", "时间"],
+                quiz: [
+                    { q: "1. 质量 2kg 的物体受 10N 力，加速度为？", options: ["A. 5 m/s² ✓", "B. 20 m/s²", "C. 0.2 m/s²"] },
+                    { q: "2. 加速度方向与什么方向相同？", options: ["A. 速度", "B. 合外力 ✓", "C. 位移"] }
+                ]
+            },
+            third: {
+                title: "牛顿第三定律 · 作用力与反作用力",
+                goals: [
+                    "理解作用力与反作用力",
+                    "区分平衡力与作用力对",
+                    "应用第三定律分析系统",
+                    "理解火箭推进原理"
+                ],
+                formulas: [
+                    { name: "作用力与反作用力", expr: "\\vec{F}_{12} = -\\vec{F}_{21}" },
+                    { name: "冲量定理", expr: "\\vec{F}\\Delta t = m\\Delta\\vec{v}" }
+                ],
+                explanation: `
+                    <strong class="text-cyan-400">通俗理解：</strong><br>
+                    你推墙，墙也推你。游泳时向后推水，水就向前推你。这就是作用力与反作用力。<br><br>
+                    <strong class="text-cyan-400">关键概念：</strong><br>
+                    • 作用力与反作用力大小相等、方向相反<br>
+                    • 作用在不同物体上，不能抵消<br>
+                    • 同时产生、同时消失
+                `,
+                controls: [
+                    { id: "obj1mass", label: "物体A质量", min: 1, max: 5, step: 0.5, value: 2, unit: "kg" },
+                    { id: "obj2mass", label: "物体B质量", min: 1, max: 5, step: 0.5, value: 3, unit: "kg" }
+                ],
+                results: ["A对B的力", "B对A的力", "A的加速度", "B的加速度"],
+                quiz: [
+                    { q: "1. 作用力与反作用力作用在？", options: ["A. 同一物体", "B. 不同物体 ✓", "C. 可以相同也可以不同"] },
+                    { q: "2. 人站在地面上，人对地面的压力与什么力是作用力对？", options: ["A. 人的重力", "B. 地面对人的支持力 ✓", "C. 地球对人的引力"] }
+                ]
+            },
+            gravity: {
+                title: "万有引力定律",
+                goals: [
+                    "理解万有引力的普遍性",
+                    "掌握引力公式应用",
+                    "理解重力加速度变化",
+                    "认识天体运动规律"
+                ],
+                formulas: [
+                    { name: "万有引力", expr: "F = G\\frac{m_1 m_2}{r^2}" },
+                    { name: "引力常数", expr: "G = 6.674 \\times 10^{-11} \\text{ N·m}^2/\\text{kg}^2" },
+                    { name: "重力加速度", expr: "g = G\\frac{M}{R^2}" },
+                    { name: "开普勒第三定律", expr: "\\frac{T^2}{r^3} = \\frac{4\\pi^2}{GM}" }
+                ],
+                explanation: `
+                    <strong class="text-cyan-400">通俗理解：</strong><br>
+                    任何两个有质量的物体都会相互吸引。苹果落地、月球绕地球、地球绕太阳，都是万有引力的作用。<br><br>
+                    <strong class="text-cyan-400">关键概念：</strong><br>
+                    • 引力与质量乘积成正比，与距离平方成反比<br>
+                    • G 是普适常数，极其微小<br>
+                    • 引力是长程力，作用范围无限远
+                `,
+                controls: [
+                    { id: "mass1", label: "天体A质量", min: 1, max: 100, step: 5, value: 50, unit: "kg" },
+                    { id: "mass2", label: "天体B质量", min: 1, max: 100, step: 5, value: 30, unit: "kg" },
+                    { id: "distance", label: "距离", min: 1, max: 10, step: 0.5, value: 3, unit: "m" }
+                ],
+                results: ["引力大小", "A的加速度", "B的加速度", "轨道速度"],
+                quiz: [
+                    { q: "1. 两物体距离变为原来2倍，引力变为？", options: ["A. 2倍", "B. 1/2", "C. 1/4 ✓"] },
+                    { q: "2. 地球表面重力加速度约为？", options: ["A. 6.67 m/s²", "B. 9.8 m/s² ✓", "C. 10 m/s²"] }
+                ]
+            }
+        };
+
+        let currentLaw = 'first';
+        let scene, camera, renderer;
+        let animationId;
+
+        // 初始化
+        function init() {
+            initThreeJS();
+            switchLaw('first');
+        }
+
+        // Three.js 初始化
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0F172A);
+
+            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+            camera.position.set(0, 0, 10);
+
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('three-canvas'),
+                antialias: true 
+            });
+            renderer.setSize(width, height);
+
+            // 灯光
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            animate();
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        // 切换定律
+        function switchLaw(law) {
+            currentLaw = law;
+            
+            // 更新标签
+            document.querySelectorAll('.law-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`tab-${law}`).classList.add('active');
+            
+            // 更新内容
+            const data = lawData[law];
+            
+            // 学习目标
+            document.getElementById('goals-container').innerHTML = data.goals.map((goal, i) => `
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" id="goal${i}" class="goal-checkbox mt-1 w-4 h-4 rounded border-gray-500 text-blue-500">
+                    <label for="goal${i}" class="text-sm text-gray-300 cursor-pointer">${goal}</label>
+                </div>
+            `).join('');
+            
+            // 公式
+            document.getElementById('formula-container').innerHTML = data.formulas.map(f => `
+                <div class="formula-box">
+                    <p class="text-xs text-cyan-400 mb-2">${f.name}</p>
+                    <div class="text-white text-lg">$$${f.expr}$$</div>
+                </div>
+            `).join('');
+            
+            // 解释
+            document.getElementById('explanation-container').innerHTML = data.explanation;
+            
+            // 控制项
+            document.getElementById('controls-container').innerHTML = data.controls.map(c => `
+                <div>
+                    <label class="text-sm text-cyan-400 mb-2 block">${c.label} (${c.unit})</label>
+                    <input type="range" id="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.value}" 
+                           class="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer slider-thumb"
+                           oninput="updateSimulation()">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>${c.min}</span>
+                        <span id="${c.id}-value" class="text-cyan-400 font-semibold">${c.value}</span>
+                        <span>${c.max}</span>
+                    </div>
+                </div>
+            `).join('');
+            
+            // 结果
+            document.getElementById('results-container').innerHTML = data.results.map(r => `
+                <div>
+                    <p class="text-xs text-gray-400">${r}</p>
+                    <p id="result-${r}" class="text-lg font-bold text-cyan-400">0</p>
+                </div>
+            `).join('');
+            
+            // 测验
+            document.getElementById('quiz-container').innerHTML = data.quiz.map((q, i) => `
+                <div class="bg-white/5 rounded-lg p-4">
+                    <p class="text-sm text-gray-300 mb-3">${q.q}</p>
+                    <div class="space-y-2">
+                        ${q.options.map(opt => `
+                            <button onclick="checkAnswer(this, '${opt.includes('✓') ? 'correct' : 'wrong'}')" 
+                                    class="w-full text-left px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm text-gray-300 transition-all">${opt.replace(' ✓', '')}</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+            
+            // 更新场景
+            updateScene();
+            
+            // 重新渲染 KaTeX
+            renderMathInElement(document.body, {
+                delimiters: [{left: "$$", right: "$$", display: true}, {left: "$", right: "$", display: false}]
+            });
+        }
+
+        // 更新模拟
+        function updateSimulation() {
+            const data = lawData[currentLaw];
+            
+            // 更新显示值
+            data.controls.forEach(c => {
+                const val = document.getElementById(c.id)?.value;
+                if (val) document.getElementById(`${c.id}-value`).textContent = val;
+            });
+            
+            // 计算并更新结果
+            calculateResults();
+        }
+
+        // 计算结果
+        function calculateResults() {
+            const data = lawData[currentLaw];
+            
+            switch(currentLaw) {
+                case 'second':
+                    const mass = parseFloat(document.getElementById('mass')?.value || 2);
+                    const force = parseFloat(document.getElementById('force')?.value || 10);
+                    const a = force / mass;
+                    document.getElementById('result-加速度').textContent = a.toFixed(2) + ' m/s²';
+                    document.getElementById('result-速度').textContent = (a * 2).toFixed(2) + ' m/s';
+                    document.getElementById('result-位移').textContent = (0.5 * a * 4).toFixed(2) + ' m';
+                    document.getElementById('result-时间').textContent = '2.0 s';
+                    break;
+                    
+                case 'gravity':
+                    const m1 = parseFloat(document.getElementById('mass1')?.value || 50);
+                    const m2 = parseFloat(document.getElementById('mass2')?.value || 30);
+                    const r = parseFloat(document.getElementById('distance')?.value || 3);
+                    const G = 6.674e-11;
+                    const F = G * m1 * m2 / (r * r);
+                    document.getElementById('result-引力大小').textContent = F.toExponential(2) + ' N';
+                    document.getElementById('result-A的加速度').textContent = (F/m1).toExponential(2) + ' m/s²';
+                    document.getElementById('result-B的加速度').textContent = (F/m2).toExponential(2) + ' m/s²';
+                    document.getElementById('result-轨道速度').textContent = Math.sqrt(F * r / m1).toFixed(3) + ' m/s';
+                    break;
+            }
+        }
+
+        // 更新场景
+        function updateScene() {
+            // 清除旧对象
+            while(scene.children.length > 2) {
+                scene.remove(scene.children[2]);
+            }
+            
+            switch(currentLaw) {
+                case 'first':
+                    createFirstLawScene();
+                    break;
+                case 'second':
+                    createSecondLawScene();
+                    break;
+                case 'third':
+                    createThirdLawScene();
+                    break;
+                case 'gravity':
+                    createGravityScene();
+                    break;
+            }
+        }
+
+        // 第一定律场景
+        function createFirstLawScene() {
+            // 创建滑块
+            const geometry = new THREE.BoxGeometry(2, 1, 1);
+            const material = new THREE.MeshPhongMaterial({ color: 0x3B82F6 });
+            const block = new THREE.Mesh(geometry, material);
+            block.position.x = -3;
+            scene.add(block);
+            
+            // 地面
+            const groundGeo = new THREE.PlaneGeometry(20, 10);
+            const groundMat = new THREE.MeshPhongMaterial({ 
+                color: 0x1E3A5F, 
+                transparent: true, 
+                opacity: 0.3 
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -1;
+            scene.add(ground);
+            
+            // 动画
+            let velocity = 0.05;
+            block.userData.update = () => {
+                block.position.x += velocity;
+                if (block.position.x > 8) block.position.x = -8;
+            };
+        }
+
+        // 第二定律场景
+        function createSecondLawScene() {
+            // 滑块
+            const geometry = new THREE.BoxGeometry(1.5, 1, 1);
+            const material = new THREE.MeshPhongMaterial({ color: 0xFBBF24 });
+            const block = new THREE.Mesh(geometry, material);
+            scene.add(block);
+            
+            // 力箭头
+            const arrowGeo = new THREE.ConeGeometry(0.2, 0.8, 8);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xFB7185 });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            arrow.rotation.z = -Math.PI / 2;
+            arrow.position.set(2, 0, 0);
+            scene.add(arrow);
+            
+            // 地面
+            const groundGeo = new THREE.PlaneGeometry(20, 10);
+            const groundMat = new THREE.MeshPhongMaterial({ 
+                color: 0x1E3A5F, 
+                transparent: true, 
+                opacity: 0.3 
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -1;
+            scene.add(ground);
+        }
+
+        // 第三定律场景
+        function createThirdLawScene() {
+            // 物体A
+            const geoA = new THREE.SphereGeometry(0.8, 32, 32);
+            const matA = new THREE.MeshPhongMaterial({ color: 0x3B82F6 });
+            const objA = new THREE.Mesh(geoA, matA);
+            objA.position.x = -2;
+            scene.add(objA);
+            
+            // 物体B
+            const geoB = new THREE.SphereGeometry(0.6, 32, 32);
+            const matB = new THREE.MeshPhongMaterial({ color: 0x22D3EE });
+            const objB = new THREE.Mesh(geoB, matB);
+            objB.position.x = 2;
+            scene.add(objB);
+            
+            // 作用力箭头
+            const arrowGeo = new THREE.ConeGeometry(0.15, 0.6, 8);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xFB7185 });
+            
+            const arrowA = new THREE.Mesh(arrowGeo, arrowMat);
+            arrowA.rotation.z = -Math.PI / 2;
+            arrowA.position.set(-0.5, 0, 0);
+            scene.add(arrowA);
+            
+            const arrowB = new THREE.Mesh(arrowGeo, arrowMat);
+            arrowB.rotation.z = Math.PI / 2;
+            arrowB.position.set(0.5, 0, 0);
+            scene.add(arrowB);
+        }
+
+        // 万有引力场景
+        function createGravityScene() {
+            // 太阳
+            const sunGeo = new THREE.SphereGeometry(1.5, 32, 32);
+            const sunMat = new THREE.MeshPhongMaterial({ 
+                color: 0xFBBF24,
+                emissive: 0xFBBF24,
+                emissiveIntensity: 0.5
+            });
+            const sun = new THREE.Mesh(sunGeo, sunMat);
+            scene.add(sun);
+            
+            // 地球
+            const earthGeo = new THREE.SphereGeometry(0.6, 32, 32);
+            const earthMat = new THREE.MeshPhongMaterial({ color: 0x3B82F6 });
+            const earth = new THREE.Mesh(earthGeo, earthMat);
+            earth.position.x = 5;
+            scene.add(earth);
+            
+            // 轨道线
+            const orbitGeo = new THREE.RingGeometry(4.8, 5.2, 64);
+            const orbitMat = new THREE.MeshBasicMaterial({ 
+                color: 0x22D3EE, 
+                transparent: true, 
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+            orbit.rotation.x = Math.PI / 2;
+            scene.add(orbit);
+            
+            // 动画
+            let angle = 0;
+            earth.userData.update = () => {
+                angle += 0.01;
+                earth.position.x = 5 * Math.cos(angle);
+                earth.position.z = 5 * Math.sin(angle);
+            };
+        }
+
+        // 测验面板切换
+        function toggleQuiz() {
+            const panel = document.getElementById('quiz-panel');
+            const fab = document.getElementById('quiz-fab');
+            
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                fab.classList.add('hidden');
+            } else {
+                panel.classList.add('hidden');
+                fab.classList.remove('hidden');
+            }
+        }
+
+        // 答案检查
+        function checkAnswer(btn, result) {
+            if (result === 'correct') {
+                btn.style.background = 'rgba(34, 197, 94, 0.5)';
+                btn.innerHTML += ' ✓';
+            } else {
+                btn.style.background = 'rgba(239, 68, 68, 0.5)';
+                btn.innerHTML += ' ✗';
+            }
+        }
+
+        // 重置
+        function resetSimulation() {
+            switchLaw(currentLaw);
+        }
+
+        // 全屏
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 窗口调整
+        window.addEventListener('resize', function() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
